@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memonic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* surfaces */
+  --white:   #FFFFFF;
+  --bg:      #F5F7FA;      /* page bg */
+  --s1:      #F0F4F8;      /* sidebar */
+  --s2:      #F7F9FB;      /* note list */
+
+  /* accent – sky blue */
+  --blue:    #3B82F6;
+  --blue-lt: rgba(59,130,246,.08);
+  --blue-md: rgba(59,130,246,.14);
+  --blue-txt:#1D4ED8;
+
+  /* text */
+  --t1: #0F172A;
+  --t2: #334155;
+  --t3: #64748B;
+  --t4: #94A3B8;
+  --t5: #CBD5E1;
+
+  /* borders */
+  --line:  #E2E8F0;
+  --line2: #EFF2F6;
+
+  /* sizing */
+  --sb-w:   192px;
+  --list-w: 252px;
+  --rp-w:   212px;
+
+  --ease: cubic-bezier(.4,0,.2,1);
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* ── Window ─────────────────────────────────────────────────────── */
+.window {
+  width: 1240px;
+  height: 780px;
+  background: var(--white);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 24px rgba(15,23,42,.07), 0 1px 4px rgba(15,23,42,.04);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Titlebar ────────────────────────────────────────────────────── */
+.titlebar {
+  height: 44px;
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.dots { display: flex; gap: 7px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot.r { background: #FF5F57; }
+.dot.y { background: #FEBC2E; }
+.dot.g { background: #28C840; }
+
+.tb-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t3);
+  letter-spacing: 0.1px;
+  pointer-events: none;
+}
+
+.tb-right {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.tb-btn {
+  width: 30px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--t4);
+  transition: color .15s, background .15s;
+}
+.tb-btn:hover { color: var(--t2); background: var(--bg); }
+.tb-btn.on    { color: var(--blue); }
+
+/* ── Main layout ─────────────────────────────────────────────────── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+.sidebar, .note-list, .right-panel {
+  transition: width .2s var(--ease), opacity .15s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sidebar.hide    { width: 0 !important; opacity: 0; }
+.note-list.hide  { width: 0 !important; opacity: 0; }
+.right-panel.hide{ width: 0 !important; opacity: 0; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sb-w);
+  background: var(--s1);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+}
+
+.sb-search {
+  margin: 6px 10px 12px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.sb-search:hover { border-color: var(--blue); }
+.sb-search svg   { color: var(--t4); flex-shrink: 0; }
+.sb-search-txt   { font-size: 12px; color: var(--t4); flex: 1; }
+.sb-kbd {
+  font-size: 10px;
+  color: var(--t5);
+  background: var(--s1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+
+.sb-group { padding-bottom: 4px; }
+
+.sb-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t5);
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  padding: 10px 14px 3px;
+}
+
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  margin: 1px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--t3);
+  cursor: pointer;
+  transition: background .1s, color .1s;
+  line-height: 1;
+}
+.sb-item:hover { background: rgba(15,23,42,.04); color: var(--t1); }
+.sb-item.on    { background: var(--blue-lt); color: var(--blue-txt); font-weight: 500; }
+.sb-item svg   { flex-shrink: 0; opacity: .7; }
+.sb-item.on svg{ opacity: 1; }
+
+.sb-count {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--t5);
+}
+
+.tag-pip { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.sb-bottom {
+  margin-top: auto;
+  padding: 8px 6px;
+  border-top: 1px solid var(--line2);
+}
+
+/* ── Note list ───────────────────────────────────────────────────── */
+.note-list {
+  width: var(--list-w);
+  background: var(--s2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+.nl-head {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line2);
+  flex-shrink: 0;
+}
+.nl-title { font-size: 13px; font-weight: 600; color: var(--t1); }
+
+.nl-actions { display: flex; gap: 3px; }
+.icon-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--t4);
+  transition: background .12s, color .12s;
+}
+.icon-btn:hover { background: var(--line2); color: var(--t2); }
+
+.nl-sort {
+  padding: 7px 14px;
+  display: flex;
+  gap: 3px;
+  border-bottom: 1px solid var(--line2);
+  flex-shrink: 0;
+}
+.sort-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  cursor: pointer;
+  color: var(--t4);
+  font-weight: 500;
+  transition: all .12s;
+}
+.sort-chip:hover { color: var(--t2); }
+.sort-chip.on    { background: var(--white); color: var(--t1); border: 1px solid var(--line); }
+
+.nl-items { overflow-y: auto; flex: 1; }
+
+.nl-item {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line2);
+  cursor: pointer;
+  transition: background .1s;
+  position: relative;
+}
+.nl-item:hover { background: rgba(59,130,246,.03); }
+.nl-item.on {
+  background: var(--blue-lt);
+  border-left: 2px solid var(--blue);
+}
+.nl-item.on .nl-title-txt { color: var(--t1); font-weight: 500; }
+
+.nl-title-txt {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--t2);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nl-preview {
+  font-size: 11.5px;
+  color: var(--t4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 7px;
+  line-height: 1.4;
+}
+.nl-foot { display: flex; align-items: center; gap: 5px; }
+.nl-date { font-size: 10.5px; color: var(--t5); }
+.nl-tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.nl-star { margin-left: auto; color: #F59E0B; }
+
+/* ── Editor ──────────────────────────────────────────────────────── */
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  overflow: hidden;
+}
+
+.ed-toolbar {
+  padding: 7px 20px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+  flex-shrink: 0;
+}
+
+.tool-btn {
+  width: 28px; height: 28px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 12px; font-weight: 700;
+  color: var(--t3);
+  font-family: 'Inter', sans-serif;
+  transition: background .1s, color .1s;
+  letter-spacing: -0.3px;
+}
+.tool-btn:hover { background: var(--bg); color: var(--t1); }
+.tool-btn.on    { background: var(--blue-lt); color: var(--blue-txt); }
+
+.tb-div {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+.view-toggle {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 1px;
+}
+.view-btn {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--t4);
+  font-weight: 500;
+  transition: all .12s;
+}
+.view-btn.on { background: var(--white); color: var(--t1); }
+
+.share-btn {
+  font-size: 11.5px;
+  padding: 5px 13px;
+  border-radius: 6px;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity .15s;
+  letter-spacing: 0.1px;
+}
+.share-btn:hover { opacity: .88; }
+
+.wc-txt { font-size: 11px; color: var(--t5); padding: 0 4px; }
+
+/* Editor scroll */
+.ed-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 48px 96px 72px;
+}
+.ed-inner { max-width: 660px; margin: 0 auto; }
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--t4);
+  margin-bottom: 20px;
+}
+.bc-item { cursor: pointer; transition: color .1s; }
+.bc-item:hover { color: var(--t2); }
+.bc-item.cur { color: var(--t3); cursor: default; }
+.bc-sep { color: var(--t5); }
+
+/* Doc title */
+.doc-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--t1);
+  line-height: 1.3;
+  margin-bottom: 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  letter-spacing: -0.4px;
+  font-family: 'Inter', sans-serif;
+}
+.doc-title:focus { outline: none; }
+
+.doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line2);
+}
+.doc-date   { font-size: 11.5px; color: var(--t4); }
+.meta-dot   { color: var(--t5); font-size: 10px; }
+.doc-chip {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.add-tag {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: var(--t4);
+  border: 1px dashed var(--t5);
+  cursor: pointer;
+  transition: all .12s;
+}
+.add-tag:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Body */
+.doc-body {
+  color: var(--t2);
+  font-size: 14.5px;
+  line-height: 1.8;
+  font-weight: 400;
+}
+.doc-body h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--t1);
+  margin: 32px 0 12px;
+  letter-spacing: -0.2px;
+}
+.doc-body h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--t2);
+  margin: 22px 0 8px;
+}
+.doc-body p   { margin-bottom: 12px; }
+.doc-body ul  { padding-left: 18px; margin-bottom: 12px; }
+.doc-body li  { margin-bottom: 4px; }
+.doc-body strong { color: var(--t1); font-weight: 600; }
+.doc-body a   { color: var(--blue); text-decoration: none; border-bottom: 1px solid rgba(59,130,246,.25); }
+.doc-body a:hover { border-bottom-color: var(--blue); }
+.doc-body hr  { border: none; border-top: 1px solid var(--line2); margin: 28px 0; }
+
+.doc-body code {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.doc-body pre {
+  background: #F8FAFC;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+.doc-body pre code {
+  background: none;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 0;
+}
+
+.doc-body blockquote {
+  border-left: 2px solid var(--blue);
+  padding: 2px 0 2px 16px;
+  color: var(--t3);
+  margin: 14px 0;
+  font-style: italic;
+}
+
+/* Callout */
+.callout {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 14px 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.callout-icon { flex-shrink: 0; color: var(--blue); margin-top: 1px; }
+.callout-body { font-size: 13.5px; color: var(--t2); line-height: 1.7; }
+
+/* Todo */
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+.todo-check {
+  width: 15px; height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid var(--line);
+  flex-shrink: 0;
+  margin-top: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+  background: var(--white);
+}
+.todo-check:hover  { border-color: var(--blue); }
+.todo-check.done   { background: var(--blue); border-color: var(--blue); }
+.todo-check.done::after {
+  content: '';
+  width: 7px; height: 4.5px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+}
+.todo-text { font-size: 14px; color: var(--t2); line-height: 1.6; }
+.todo-text.done { text-decoration: line-through; color: var(--t4); }
+
+/* Mindmap */
+.mindmap {
+  background: #F8FAFC;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  height: 148px;
+  position: relative;
+  overflow: hidden;
+}
+.mn-line {
+  position: absolute;
+  height: 1px;
+  background: #BFDBFE;
+  transform-origin: left center;
+}
+.mn-node {
+  position: absolute;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  color: var(--t2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mn-node.root {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ── Right panel ─────────────────────────────────────────────────── */
+.right-panel {
+  width: var(--rp-w);
+  border-left: 1px solid var(--line);
+  background: var(--white);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.rp-section {}
+.rp-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t4);
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+
+.outline-item {
+  font-size: 12px;
+  color: var(--t3);
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all .1s;
+  line-height: 1.4;
+}
+.outline-item:hover { background: var(--bg); color: var(--t1); }
+.outline-item.h2   { font-weight: 500; color: var(--t2); }
+.outline-item.h3   { padding-left: 16px; font-size: 11px; }
+.outline-item.act  { color: var(--blue); background: var(--blue-lt); }
+
+/* Stat cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stat-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px 10px;
+}
+.stat-val {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--t1);
+  line-height: 1;
+  margin-bottom: 2px;
+  letter-spacing: -0.5px;
+}
+.stat-lbl {
+  font-size: 10px;
+  color: var(--t4);
+}
+
+/* Backlinks */
+.backlink {
+  font-size: 12px;
+  color: var(--blue-txt);
+  padding: 6px 9px;
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background .1s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1.4;
+}
+.backlink:hover { background: #DBEAFE; }
+.backlink svg   { flex-shrink: 0; opacity: .6; }
+
+/* Meta info */
+.meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+.meta-key { color: var(--t4); }
+.meta-val { color: var(--t2); font-weight: 500; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--t5); }
+
+/* Tooltip */
+.tip {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: var(--t1);
+  color: rgba(255,255,255,.85);
+  font-size: 11.5px;
+  padding: 5px 13px;
+  border-radius: 20px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .18s, transform .18s;
+  z-index: 500;
+  white-space: nowrap;
+}
+.tip.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="window">
+
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot r"></div>
+      <div class="dot y"></div>
+      <div class="dot g"></div>
+    </div>
+    <span class="tb-center">memonic</span>
+    <div class="tb-right">
+      <!-- sidebar -->
+      <div class="tb-btn on" id="btn-sb" onclick="tog('sb')" title="侧边栏 ⌘\">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="1" width="4" height="12" rx="1" fill="currentColor" opacity=".9"/>
+          <rect x="7" y="1" width="6" height="12" rx="1" fill="currentColor" opacity=".3"/>
+        </svg>
+      </div>
+      <!-- list -->
+      <div class="tb-btn on" id="btn-list" onclick="tog('list')" title="笔记列表 ⌘⇧L">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="2" width="12" height="1.5" rx=".75" fill="currentColor"/>
+          <rect x="1" y="5.5" width="12" height="1.5" rx=".75" fill="currentColor" opacity=".6"/>
+          <rect x="1" y="9" width="8" height="1.5" rx=".75" fill="currentColor" opacity=".35"/>
+        </svg>
+      </div>
+      <!-- right panel -->
+      <div class="tb-btn on" id="btn-rp" onclick="tog('rp')" title="信息面板 ⌘⇧I">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="1" width="6" height="12" rx="1" fill="currentColor" opacity=".3"/>
+          <rect x="9" y="1" width="4" height="12" rx="1" fill="currentColor" opacity=".9"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sb-search" onclick="tip('⌘K 全局搜索')">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+          <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="sb-search-txt">搜索...</span>
+        <span class="sb-kbd">⌘K</span>
+      </div>
+
+      <div class="sb-group">
+        <div class="sb-item on">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M3 4h10M3 7.5h10M3 11h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          全部笔记
+          <span class="sb-count">24</span>
+        </div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2l1.8 3.6 4 .58-2.9 2.82.68 3.98L8 11.1l-3.58 1.88.68-3.98L2.2 6.18l4-.58z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+          收藏
+          <span class="sb-count">5</span>
+        </div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M8 5v3.5l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          最近编辑
+        </div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M3 4h10M6 4V3h4v1M5.5 4l.5 8h4l.5-8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          废纸篓
+        </div>
+      </div>
+
+      <div class="sb-group">
+        <div class="sb-label">文件夹</div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 5h12v7.5a1 1 0 01-1 1H3a1 1 0 01-1-1V5zM2 5V4a1 1 0 011-1h3l1.5 2H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+          工作
+          <span class="sb-count">8</span>
+        </div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 5h12v7.5a1 1 0 01-1 1H3a1 1 0 01-1-1V5zM2 5V4a1 1 0 011-1h3l1.5 2H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+          学习
+          <span class="sb-count">11</span>
+        </div>
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 5h12v7.5a1 1 0 01-1 1H3a1 1 0 01-1-1V5zM2 5V4a1 1 0 011-1h3l1.5 2H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+          </svg>
+          生活
+          <span class="sb-count">5</span>
+        </div>
+        <div class="sb-item" style="color:var(--t4);font-size:12px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 4v8M4 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          新建文件夹
+        </div>
+      </div>
+
+      <div class="sb-group">
+        <div class="sb-label">标签</div>
+        <div class="sb-item">
+          <span class="tag-pip" style="background:#6366F1"></span>
+          产品
+          <span class="sb-count">6</span>
+        </div>
+        <div class="sb-item">
+          <span class="tag-pip" style="background:#10B981"></span>
+          设计
+          <span class="sb-count">4</span>
+        </div>
+        <div class="sb-item">
+          <span class="tag-pip" style="background:#F59E0B"></span>
+          读书
+          <span class="sb-count">9</span>
+        </div>
+        <div class="sb-item">
+          <span class="tag-pip" style="background:#EC4899"></span>
+          想法
+          <span class="sb-count">3</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-item">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M13 3l-1.41 1.41M4.46 11.54 3.05 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          设置
+        </div>
+      </div>
+    </nav>
+
+    <!-- Note list -->
+    <div class="note-list" id="notelist">
+      <div class="nl-head">
+        <span class="nl-title">全部笔记</span>
+        <div class="nl-actions">
+          <div class="icon-btn" onclick="tip('筛选')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4h12M4.5 8h7M7 12h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="icon-btn" onclick="tip('新建笔记 ⌘N')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="nl-sort">
+        <div class="sort-chip on">最新</div>
+        <div class="sort-chip">修改</div>
+        <div class="sort-chip">标题</div>
+      </div>
+
+      <div class="nl-items">
+
+        <div class="nl-item on">
+          <div class="nl-title-txt">产品设计反思：从 0 到 1 的决策框架</div>
+          <div class="nl-preview">当我们在谈论产品决策时，我们究竟在谈论什么...</div>
+          <div class="nl-foot">
+            <span class="nl-date">04-05</span>
+            <span class="nl-tag" style="background:#EEF2FF;color:#6366F1;">#产品</span>
+            <span class="nl-star">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .58-2.9 2.82.68 3.98L8 11.1l-3.58 1.88.68-3.98L2.2 6.18l4-.58z"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">《人月神话》读书笔记</div>
+          <div class="nl-preview">没有银弹，软件工程的本质复杂性...</div>
+          <div class="nl-foot">
+            <span class="nl-date">04-03</span>
+            <span class="nl-tag" style="background:#FFFBEB;color:#D97706;">#读书</span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">设计系统的颜色哲学</div>
+          <div class="nl-preview">语义化颜色 vs. 字面量颜色的边界在哪里...</div>
+          <div class="nl-foot">
+            <span class="nl-date">04-01</span>
+            <span class="nl-tag" style="background:#ECFDF5;color:#059669;">#设计</span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">Weekly Reflection · W13</div>
+          <div class="nl-preview">这周做了什么，学到了什么，下周想做什么...</div>
+          <div class="nl-foot">
+            <span class="nl-date">03-29</span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">关于深度工作的碎碎念</div>
+          <div class="nl-preview">Cal Newport 的框架在中国语境下是否成立...</div>
+          <div class="nl-foot">
+            <span class="nl-date">03-27</span>
+            <span class="nl-tag" style="background:#FDF2F8;color:#DB2777;">#想法</span>
+            <span class="nl-star">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6 4 .58-2.9 2.82.68 3.98L8 11.1l-3.58 1.88.68-3.98L2.2 6.18l4-.58z"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">构建第二大脑：工具与工作流</div>
+          <div class="nl-preview">PARA 系统、Zettelkasten 和卡片盒的比较...</div>
+          <div class="nl-foot">
+            <span class="nl-date">03-24</span>
+            <span class="nl-tag" style="background:#EEF2FF;color:#6366F1;">#产品</span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">Fermi 估算练习集</div>
+          <div class="nl-preview">中国有多少辆出租车？钢琴调音师有多少...</div>
+          <div class="nl-foot">
+            <span class="nl-date">03-20</span>
+            <span class="nl-tag" style="background:#FFFBEB;color:#D97706;">#读书</span>
+          </div>
+        </div>
+
+        <div class="nl-item">
+          <div class="nl-title-txt">Memonic 产品 Roadmap Q2</div>
+          <div class="nl-preview">协作编辑、移动端、插件系统的优先级排序...</div>
+          <div class="nl-foot">
+            <span class="nl-date">03-18</span>
+            <span class="nl-tag" style="background:#EEF2FF;color:#6366F1;">#产品</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="editor-area">
+      <div class="ed-toolbar">
+        <div class="tool-btn on" style="font-style:italic;font-size:13px;" onclick="tip('斜体 ⌘I')">I</div>
+        <div class="tool-btn" style="font-weight:800;" onclick="tip('加粗 ⌘B')">B</div>
+        <div class="tool-btn" style="text-decoration:underline;" onclick="tip('下划线 ⌘U')">U</div>
+        <div class="tool-btn" style="text-decoration:line-through;" onclick="tip('删除线')">S</div>
+        <div class="tb-div"></div>
+        <div class="tool-btn" style="font-size:11px;font-weight:700;min-width:30px;" onclick="tip('标题 1')">H1</div>
+        <div class="tool-btn" style="font-size:11px;font-weight:700;min-width:30px;" onclick="tip('标题 2')">H2</div>
+        <div class="tb-div"></div>
+        <!-- List -->
+        <div class="tool-btn" onclick="tip('列表')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <circle cx="3" cy="5" r="1.2" fill="currentColor"/>
+            <circle cx="3" cy="9" r="1.2" fill="currentColor"/>
+            <circle cx="3" cy="13" r="1.2" fill="currentColor"/>
+            <rect x="6" y="4.2" width="8.5" height="1.5" rx=".75" fill="currentColor"/>
+            <rect x="6" y="8.2" width="8.5" height="1.5" rx=".75" fill="currentColor"/>
+            <rect x="6" y="12.2" width="5" height="1.5" rx=".75" fill="currentColor"/>
+          </svg>
+        </div>
+        <!-- Todo -->
+        <div class="tool-btn" onclick="tip('待办')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="4" width="4" height="4" rx=".8" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M7.5 6h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <rect x="2" y="10" width="4" height="4" rx=".8" fill="currentColor" opacity=".25"/>
+            <path d="M3.5 12l1 1 2-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.5 12h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- Code -->
+        <div class="tool-btn" onclick="tip('代码块')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.5 4l-3 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".5"/>
+          </svg>
+        </div>
+        <!-- Quote -->
+        <div class="tool-btn" onclick="tip('引用')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M3 5h3v3.5H4.5L6 11H4L2.5 9V5zM9 5h3v3.5H10.5L12 11h-2L8.5 9V5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="tb-div"></div>
+        <!-- Link -->
+        <div class="tool-btn" onclick="tip('链接 ⌘K')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M7 9a3.2 3.2 0 004.5 0l2-2a3.2 3.2 0 00-4.5-4.5L7.5 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M9 7a3.2 3.2 0 00-4.5 0l-2 2a3.2 3.2 0 004.5 4.5L8.5 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- Image -->
+        <div class="tool-btn" onclick="tip('图片')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M2 10l3-3 2.5 2.5 2.5-3L14 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="10.5" cy="6" r="1.1" fill="currentColor" opacity=".6"/>
+          </svg>
+        </div>
+
+        <span class="wc-txt">432 字</span>
+
+        <div class="toolbar-right">
+          <div class="view-toggle">
+            <div class="view-btn on">编辑</div>
+            <div class="view-btn">预览</div>
+            <div class="view-btn">分栏</div>
+          </div>
+          <div class="share-btn" onclick="tip('生成分享链接')">分享</div>
+        </div>
+      </div>
+
+      <div class="ed-scroll">
+        <div class="ed-inner">
+          <div class="breadcrumb">
+            <span class="bc-item">工作</span>
+            <span class="bc-sep">›</span>
+            <span class="bc-item cur">产品设计反思：从 0 到 1 的决策框架</span>
+          </div>
+
+          <div class="doc-title" contenteditable="true" spellcheck="false">产品设计反思：从 0 到 1 的决策框架</div>
+
+          <div class="doc-meta">
+            <span class="doc-date">2026年4月5日</span>
+            <span class="meta-dot">·</span>
+            <span class="doc-date">工作</span>
+            <span class="meta-dot">·</span>
+            <span class="doc-chip" style="background:#EEF2FF;color:#6366F1;">#产品</span>
+            <span class="doc-chip" style="background:#ECFDF5;color:#059669;">#设计</span>
+            <span class="add-tag">+ 标签</span>
+          </div>
+
+          <div class="doc-body">
+            <p>当我们在谈论「产品决策」时，我们究竟在谈论什么？过去一年里我参与了从 0 到 1 的三个产品，每次都会在某个关键节点卡住——不是因为没有想法，而是因为想法太多，却缺乏一个可以让团队对齐的框架。</p>
+
+            <blockquote>设计不是让事情看起来好看，而是让事情运作起来。</blockquote>
+
+            <h2>一、决策的三个层次</h2>
+
+            <p>我把产品决策拆分成三个层次，从宏观到微观依次递减：</p>
+
+            <ul>
+              <li><strong>战略层</strong>：我们要解决什么问题？目标用户是谁？</li>
+              <li><strong>体验层</strong>：用户路径是什么？关键时刻如何设计？</li>
+              <li><strong>执行层</strong>：用什么技术？怎么上线？灰度策略是什么？</li>
+            </ul>
+
+            <p>大多数争论，其实是在不同层次之间跳跃，而对话者自己并不知道。这是效率低下的根本原因。</p>
+
+            <h2>二、验证优先的思维模型</h2>
+
+            <p>Eric Ries 的 Lean Startup 给了我们「最小可行产品」的工具，但很多团队把 MVP 做成了功能删减版，而不是<strong>假设验证器</strong>。</p>
+
+            <div class="callout">
+              <span class="callout-icon">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.3"/>
+                  <path d="M8 7v4.5M8 5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <div class="callout-body">真正的 MVP 应该回答：<em>「这个核心假设是否成立？」</em>而不是「我们能做出最简单版本的产品吗？」</div>
+            </div>
+
+            <div class="todo-item">
+              <div class="todo-check done"></div>
+              <span class="todo-text done">明确核心假设（用户是否有这个痛点）</span>
+            </div>
+            <div class="todo-item">
+              <div class="todo-check done"></div>
+              <span class="todo-text done">定义验证指标（什么数据证明假设成立）</span>
+            </div>
+            <div class="todo-item">
+              <div class="todo-check"></div>
+              <span class="todo-text">设计最小实验（最快速最便宜的验证方式）</span>
+            </div>
+            <div class="todo-item">
+              <div class="todo-check"></div>
+              <span class="todo-text">建立反馈机制（如何收集真实用户反馈）</span>
+            </div>
+
+            <h2>三、决策质量的心智模型</h2>
+
+            <p>贝佐斯有一个著名的框架：<strong>Type 1 vs Type 2 决策</strong>。Type 1 是不可逆的，要慎重；Type 2 是可逆的，要快。</p>
+
+            <pre><code>function evaluate(decision) {
+  const reversibility = calcReversibility(decision)
+  const speed = reversibility > 0.7 ? 'fast' : 'slow'
+  return { speed, framework: speed === 'fast'
+    ? 'bias-to-action' : 'consensus' }
+}</code></pre>
+
+            <h3>工具推荐</h3>
+
+            <p>几个实际在用的工具：<a href="#">RICE 评分框架</a>、<a href="#">Jobs-to-be-Done 访谈</a>，以及 Marty Cagan 在 <a href="#">Inspired</a> 里提到的 Discovery vs Delivery 双轨制。</p>
+
+            <div class="mindmap">
+              <div class="mn-line" style="left:196px;top:63px;width:62px;transform:rotate(-22deg)"></div>
+              <div class="mn-line" style="left:196px;top:68px;width:54px;transform:rotate(0deg)"></div>
+              <div class="mn-line" style="left:196px;top:73px;width:62px;transform:rotate(22deg)"></div>
+              <div class="mn-line" style="left:318px;top:44px;width:50px;transform:rotate(-14deg)"></div>
+              <div class="mn-line" style="left:318px;top:48px;width:50px;transform:rotate(14deg)"></div>
+              <div class="mn-node root" style="left:120px;top:56px;">决策框架</div>
+              <div class="mn-node" style="left:258px;top:30px;">战略层</div>
+              <div class="mn-node" style="left:258px;top:60px;">体验层</div>
+              <div class="mn-node" style="left:258px;top:90px;">执行层</div>
+              <div class="mn-node" style="left:372px;top:20px;font-size:11px;opacity:.7">用户 · 问题</div>
+              <div class="mn-node" style="left:372px;top:50px;font-size:11px;opacity:.7">路径 · 时刻</div>
+            </div>
+
+            <hr>
+            <p style="color:var(--t4);font-size:13px;">持续更新中 · 上次修改于 2026-04-05</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="right-panel" id="rightpanel">
+
+      <div class="rp-section">
+        <div class="rp-title">文档大纲</div>
+        <div class="outline-item h2 act">一、决策的三个层次</div>
+        <div class="outline-item h2">二、验证优先的思维模型</div>
+        <div class="outline-item h2">三、决策质量的心智模型</div>
+        <div class="outline-item h3">工具推荐</div>
+      </div>
+
+      <div class="rp-section">
+        <div class="rp-title">文档统计</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val">432</div>
+            <div class="stat-lbl">字数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">2 min</div>
+            <div class="stat-lbl">阅读时间</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">4</div>
+            <div class="stat-lbl">待办</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">3</div>
+            <div class="stat-lbl">标题</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rp-section">
+        <div class="rp-title">反向链接 · 3</div>
+        <div class="backlink">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <path d="M7 9a3.2 3.2 0 004.5 0l2-2a3.2 3.2 0 00-4.5-4.5L7.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M9 7a3.2 3.2 0 00-4.5 0l-2 2a3.2 3.2 0 004.5 4.5L8.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          构建第二大脑：工具与工作流
+        </div>
+        <div class="backlink">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <path d="M7 9a3.2 3.2 0 004.5 0l2-2a3.2 3.2 0 00-4.5-4.5L7.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M9 7a3.2 3.2 0 00-4.5 0l-2 2a3.2 3.2 0 004.5 4.5L8.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Memonic 产品 Roadmap Q2
+        </div>
+        <div class="backlink">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+            <path d="M7 9a3.2 3.2 0 004.5 0l2-2a3.2 3.2 0 00-4.5-4.5L7.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M9 7a3.2 3.2 0 00-4.5 0l-2 2a3.2 3.2 0 004.5 4.5L8.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Weekly Reflection · W13
+        </div>
+      </div>
+
+      <div class="rp-section" style="margin-top:auto;">
+        <div class="rp-title">元信息</div>
+        <div class="meta-list">
+          <div class="meta-row">
+            <span class="meta-key">创建</span>
+            <span class="meta-val">2026-03-20</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">修改</span>
+            <span class="meta-val">2026-04-05</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">字符数</span>
+            <span class="meta-val">1,248</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+const st = { sb: true, list: true, rp: true }
+const mp = {
+  sb:   { el: document.getElementById('sidebar'),    btn: document.getElementById('btn-sb') },
+  list: { el: document.getElementById('notelist'),   btn: document.getElementById('btn-list') },
+  rp:   { el: document.getElementById('rightpanel'), btn: document.getElementById('btn-rp') },
+}
+function tog(k) {
+  st[k] = !st[k]
+  mp[k].el.classList.toggle('hide', !st[k])
+  mp[k].btn.classList.toggle('on', st[k])
+}
+
+let tt
+function tip(msg) {
+  const el = document.getElementById('tip')
+  el.textContent = msg
+  el.classList.add('show')
+  clearTimeout(tt)
+  tt = setTimeout(() => el.classList.remove('show'), 1600)
+}
+
+document.querySelectorAll('.nl-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nl-item').forEach(i => i.classList.remove('on'))
+    item.classList.add('on')
+  })
+})
+
+document.querySelectorAll('.sort-chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.sort-chip').forEach(x => x.classList.remove('on'))
+    c.classList.add('on')
+  })
+})
+
+document.querySelectorAll('.view-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(x => x.classList.remove('on'))
+    b.classList.add('on')
+    tip('切换到' + b.textContent + '模式')
+  })
+})
+
+document.querySelectorAll('.outline-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.outline-item').forEach(i => i.classList.remove('act'))
+    item.classList.add('act')
+  })
+})
+
+document.querySelectorAll('.todo-check').forEach(c => {
+  c.addEventListener('click', () => {
+    c.classList.toggle('done')
+    c.nextElementSibling.classList.toggle('done')
+  })
+})
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='\\') { e.preventDefault(); tog('sb') }
+  if ((e.metaKey||e.ctrlKey) && e.shiftKey && e.key==='L') { e.preventDefault(); tog('list') }
+  if ((e.metaKey||e.ctrlKey) && e.shiftKey && e.key==='I') { e.preventDefault(); tog('rp') }
+})
+</script>
+</body>
+</html>
