@@ -94,12 +94,14 @@ export default function App() {
   // ── Update (debounced save) ─────────────────────────────────────────
   const handleUpdate = useCallback((patch: Partial<Note>) => {
     if (!activeId) return
-    setNotes(prev => prev.map(n => n.id === activeId ? { ...n, ...patch } : n))
+    const now = new Date().toISOString().split('T')[0]
+    const fullPatch = { ...patch, updatedAt: now }
+    setNotes(prev => prev.map(n => n.id === activeId ? { ...n, ...fullPatch } : n))
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       setNotes(prev => {
         const note = prev.find(n => n.id === activeId)
-        if (note) saveNote({ ...note, ...patch })
+        if (note) saveNote({ ...note, ...fullPatch })
         return prev
       })
     }, AUTOSAVE_DELAY)
@@ -140,10 +142,28 @@ export default function App() {
     })
   }, [activeId])
 
-  // ── Create folder (just switches view; notes get folder on create) ──
-  const handleCreateFolder = useCallback((_name: string) => {
-    // Folder is created implicitly when a note is added to it.
-    // This callback exists so Sidebar can trigger view change after naming.
+  // ── Create folder (folder created implicitly when first note added) ──
+  const handleCreateFolder = useCallback((_name: string) => {}, [])
+
+  // ── Rename folder ──────────────────────────────────────────────────
+  const handleRenameFolder = useCallback((oldName: string, newName: string) => {
+    if (!newName.trim() || newName === oldName) return
+    setNotes(prev => {
+      const next = prev.map(n => n.folder === oldName ? { ...n, folder: newName } : n)
+      next.filter(n => n.folder === newName).forEach(n => saveNote(n))
+      return next
+    })
+    setView(`folder:${newName}`)
+  }, [])
+
+  // ── Delete folder (move notes to 未分类) ──────────────────────────
+  const handleDeleteFolder = useCallback((name: string) => {
+    setNotes(prev => {
+      const next = prev.map(n => n.folder === name ? { ...n, folder: '未分类' } : n)
+      next.filter(n => n.folder === '未分类').forEach(n => saveNote(n))
+      return next
+    })
+    setView('all')
   }, [])
 
   // ── Toggle star ────────────────────────────────────────────────────
@@ -178,6 +198,8 @@ export default function App() {
             allTags={allTags}
             notes={notes}
             onCreateFolder={handleCreateFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
             onOpenSearch={() => setSearchOpen(true)}
             onViewChange={(v) => {
               setView(v)
@@ -212,7 +234,14 @@ export default function App() {
       {searchOpen && (
         <SearchModal
           notes={notes}
-          onSelect={(id) => { setActiveId(id); setView('all') }}
+          onSelect={(id) => {
+            setActiveId(id)
+            // switch to 'all' only if the note isn't visible in current view
+            const note = notes.find(n => n.id === id)
+            if (!note) return
+            const visibleInCurrentView = filteredNotes.some(n => n.id === id)
+            if (!visibleInCurrentView) setView('all')
+          }}
           onClose={() => setSearchOpen(false)}
         />
       )}

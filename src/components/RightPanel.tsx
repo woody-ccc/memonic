@@ -34,7 +34,15 @@ export default function RightPanel({ visible, note }: Props) {
           <div
             key={i}
             className={`${styles.outlineItem} ${styles[item.level]} ${i === activeOutline ? styles.act : ''}`}
-            onClick={() => setActiveOutline(i)}
+            onClick={() => {
+              setActiveOutline(i)
+              const editor = document.querySelector('.ProseMirror')
+              if (!editor) return
+              const headings = editor.querySelectorAll('h1,h2,h3')
+              const matches = Array.from(headings).filter(h => h.textContent?.trim() === item.text)
+              const target = matches[0] as HTMLElement | undefined
+              target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
           >
             {item.text}
           </div>

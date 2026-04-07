@@ -12,14 +12,23 @@ interface Props {
   notes: Note[]
   onViewChange: (v: ViewType) => void
   onCreateFolder: (name: string) => void
+  onRenameFolder: (oldName: string, newName: string) => void
+  onDeleteFolder: (name: string) => void
   onOpenSearch: () => void
 }
 
-export default function Sidebar({ visible, view, allTags, notes, onViewChange, onCreateFolder, onOpenSearch }: Props) {
+export default function Sidebar({
+  visible, view, allTags, notes, onViewChange,
+  onCreateFolder, onRenameFolder, onDeleteFolder, onOpenSearch,
+}: Props) {
   const { showTip } = useTooltip()
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderInput, setFolderInput] = useState('')
   const folderInputRef = useRef<HTMLInputElement>(null)
+  const [menuFolder, setMenuFolder] = useState<string | null>(null)
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null)
+  const [renameInput, setRenameInput] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   const starredCount = notes.filter(n => n.starred && !n.deleted).length
   const trashCount   = notes.filter(n => n.deleted).length
@@ -50,6 +59,19 @@ export default function Sidebar({ visible, view, allTags, notes, onViewChange, o
     }
     setAddingFolder(false)
     setFolderInput('')
+  }
+
+  function startRename(folder: string) {
+    setMenuFolder(null)
+    setRenamingFolder(folder)
+    setRenameInput(folder)
+    setTimeout(() => renameInputRef.current?.focus(), 50)
+  }
+
+  function confirmRename() {
+    if (renamingFolder) onRenameFolder(renamingFolder, renameInput)
+    setRenamingFolder(null)
+    setRenameInput('')
   }
 
   const folders = Array.from(new Set(
@@ -99,15 +121,57 @@ export default function Sidebar({ visible, view, allTags, notes, onViewChange, o
         <div className={styles.label}>文件夹</div>
         {folders.map(folder => {
           const count = notes.filter(n => n.folder === folder && !n.deleted).length
+          const isRenaming = renamingFolder === folder
           return (
-            <div
-              key={folder}
-              className={`${styles.item} ${view === `folder:${folder}` ? styles.on : ''}`}
-              onClick={() => onViewChange(`folder:${folder}`)}
-            >
-              <FolderIcon />
-              {folder}
-              {count > 0 && <span className={styles.count}>{count}</span>}
+            <div key={folder} style={{ position: 'relative' }}>
+              {isRenaming ? (
+                <div className={styles.folderInputRow}>
+                  <FolderIcon />
+                  <input
+                    ref={renameInputRef}
+                    className={styles.folderInput}
+                    value={renameInput}
+                    onChange={e => setRenameInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') confirmRename()
+                      if (e.key === 'Escape') { setRenamingFolder(null) }
+                    }}
+                    onBlur={confirmRename}
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`${styles.item} ${view === `folder:${folder}` ? styles.on : ''}`}
+                  onClick={() => { onViewChange(`folder:${folder}`); setMenuFolder(null) }}
+                  onContextMenu={e => { e.preventDefault(); setMenuFolder(menuFolder === folder ? null : folder) }}
+                >
+                  <FolderIcon />
+                  {folder}
+                  {count > 0 && <span className={styles.count}>{count}</span>}
+                </div>
+              )}
+
+              {menuFolder === folder && (
+                <>
+                  <div className={styles.folderMenuOverlay} onClick={() => setMenuFolder(null)} />
+                  <div className={styles.folderMenu}>
+                    <div className={styles.folderMenuItem} onClick={() => startRename(folder)}>
+                      重命名
+                    </div>
+                    <div
+                      className={`${styles.folderMenuItem} ${styles.folderMenuDanger}`}
+                      onClick={() => {
+                        setMenuFolder(null)
+                        if (confirm(`删除文件夹「${folder}」？笔记将移至未分类`)) {
+                          onDeleteFolder(folder)
+                        }
+                      }}
+                    >
+                      删除文件夹
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )
         })}

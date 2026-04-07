@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { Note, SortType, ViewType } from '../types'
 import { TAG_COLORS } from '../data/mockData'
 import { FilterIcon, PlusIcon } from './icons'
-import { useTooltip } from '../hooks/useTooltip'
 import styles from './NoteList.module.css'
 
 interface Props {
@@ -30,13 +29,19 @@ export default function NoteList({
 }: Props) {
   const [sort, setSort] = useState<SortType>('latest')
   const [menuId, setMenuId] = useState<string | null>(null)
-  const { showTip } = useTooltip()
+  const [filterTag, setFilterTag] = useState<string | null>(null)
+  const [showFilter, setShowFilter] = useState(false)
   const isTrash = view === 'trash'
 
   const title = VIEW_TITLES[view]
     ?? (view.startsWith('tag:') ? `#${view.slice(4)}` : view.startsWith('folder:') ? view.slice(7) : '笔记')
 
-  const sorted = [...notes].sort((a, b) => {
+  // Collect tags present in current note list
+  const availableTags = Array.from(new Set(notes.flatMap(n => n.tags)))
+
+  const filtered = filterTag ? notes.filter(n => n.tags.includes(filterTag)) : notes
+
+  const sorted = [...filtered].sort((a, b) => {
     if (sort === 'title')    return a.title.localeCompare(b.title, 'zh')
     if (sort === 'modified') return b.updatedAt.localeCompare(a.updatedAt)
     return b.createdAt.localeCompare(a.createdAt)
@@ -47,14 +52,20 @@ export default function NoteList({
       <div className={styles.head}>
         <span className={styles.title}>
           {title}
-          <span className={styles.cnt}>{notes.length}</span>
+          <span className={styles.cnt}>{sorted.length}</span>
         </span>
         <div className={styles.actions}>
           {!isTrash && (
             <>
-              <button className={styles.iconBtn} onClick={() => showTip('筛选（开发中）')}>
-                <FilterIcon />
-              </button>
+              {availableTags.length > 0 && (
+                <button
+                  className={`${styles.iconBtn} ${filterTag || showFilter ? styles.iconBtnOn : ''}`}
+                  onClick={() => { setShowFilter(v => !v); if (showFilter) setFilterTag(null) }}
+                  title="标签筛选"
+                >
+                  <FilterIcon />
+                </button>
+              )}
               <button className={styles.iconBtn} onClick={onCreate} title="新建笔记 ⌘N">
                 <PlusIcon />
               </button>
@@ -75,6 +86,22 @@ export default function NoteList({
         </div>
       </div>
 
+      {!isTrash && showFilter && availableTags.length > 0 && (
+        <div className={styles.filterRow}>
+          <span
+            className={`${styles.filterChip} ${!filterTag ? styles.filterChipOn : ''}`}
+            onClick={() => setFilterTag(null)}
+          >全部</span>
+          {availableTags.map(tag => (
+            <span
+              key={tag}
+              className={`${styles.filterChip} ${filterTag === tag ? styles.filterChipOn : ''}`}
+              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+            >#{tag}</span>
+          ))}
+        </div>
+      )}
+
       {!isTrash && (
         <div className={styles.sort}>
           {(['latest', 'modified', 'title'] as SortType[]).map(s => (
@@ -91,6 +118,12 @@ export default function NoteList({
           <div className={styles.empty}>
             <p>{isTrash ? '废纸篓是空的' : '这里还没有笔记'}</p>
             {!isTrash && <button onClick={onCreate}>+ 新建第一篇</button>}
+          </div>
+        )}
+
+        {sorted.length === 0 && filtered.length < notes.length && (
+          <div className={styles.empty}>
+            <p>该标签下没有笔记</p>
           </div>
         )}
 
