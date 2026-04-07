@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Note, PanelState, ViewType } from './types'
 import { loadNotes, saveNote, deleteNote, generateId } from './services/storage'
 import Titlebar from './components/Titlebar'
@@ -53,19 +53,21 @@ export default function App() {
   }
 
   // ── Filtered notes for current view ───────────────────────────────
-  const filteredNotes = notes.filter(n => {
+  const filteredNotes = useMemo(() => notes.filter(n => {
     if (view === 'trash')   return n.deleted
     if (view === 'starred') return n.starred && !n.deleted
     if (view.startsWith('tag:'))    return n.tags.includes(view.slice(4)) && !n.deleted
     if (view.startsWith('folder:')) return n.folder === view.slice(7) && !n.deleted
     return !n.deleted
-  })
+  }), [notes, view])
 
   // ── All tags / folders for sidebar + editor ────────────────────────
-  const allTags    = Array.from(new Set(notes.filter(n => !n.deleted).flatMap(n => n.tags)))
-  const allFolders = Array.from(new Set(
-    notes.filter(n => !n.deleted && n.folder && n.folder !== '未分类').map(n => n.folder)
-  ))
+  const allTags = useMemo(() =>
+    Array.from(new Set(notes.filter(n => !n.deleted).flatMap(n => n.tags))),
+  [notes])
+  const allFolders = useMemo(() =>
+    Array.from(new Set(notes.filter(n => !n.deleted && n.folder && n.folder !== '未分类').map(n => n.folder))),
+  [notes])
 
   // ── Create ─────────────────────────────────────────────────────────
   const handleCreate = useCallback(() => {

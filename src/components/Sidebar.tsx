@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, memo } from 'react'
 import type { Note, ViewType } from '../types'
 import { TAG_COLORS } from '../data/mockData'
 import { AllNotesIcon, StarIcon, TrashIcon, FolderIcon, PlusIcon, SettingsIcon, SearchIcon } from './icons'
@@ -17,7 +17,7 @@ interface Props {
   onOpenSearch: () => void
 }
 
-export default function Sidebar({
+export default memo(function Sidebar({
   visible, view, allTags, notes, onViewChange,
   onCreateFolder, onRenameFolder, onDeleteFolder, onOpenSearch,
 }: Props) {
@@ -207,4 +207,4 @@ export default function Sidebar({
       </div>
     </nav>
   )
-}
+})

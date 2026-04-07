@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Note } from '../types'
 import styles from './RightPanel.module.css'
 
@@ -10,8 +10,8 @@ interface Props {
 export default function RightPanel({ visible, note }: Props) {
   const [activeOutline, setActiveOutline] = useState(0)
 
-  // Parse h2/h3 from note content
-  const outline = (() => {
+  // Parse headings — only recompute when content actually changes
+  const outline = useMemo(() => {
     if (!note?.content) return []
     const div = document.createElement('div')
     div.innerHTML = note.content
@@ -19,7 +19,7 @@ export default function RightPanel({ visible, note }: Props) {
       text: el.textContent ?? '',
       level: el.tagName.toLowerCase() as 'h1' | 'h2' | 'h3',
     }))
-  })()
+  }, [note?.content])
 
   return (
     <div className={`${styles.panel} ${!visible ? styles.hide : ''}`}>

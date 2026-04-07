@@ -65,14 +65,26 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+const CONTENT_DEBOUNCE = 600
+
 export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders }: Props) {
-  const titleRef    = useRef<HTMLDivElement>(null)
+  const titleRef     = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [tagInput, setTagInput]       = useState('')
-  const [showTagInput, setShowTagInput] = useState(false)
+  const [tagInput, setTagInput]             = useState('')
+  const [showTagInput, setShowTagInput]     = useState(false)
   const tagInputRef = useRef<HTMLInputElement>(null)
-  const [showExport, setShowExport]   = useState(false)
+  const [showExport, setShowExport]         = useState(false)
   const [showFolderMenu, setShowFolderMenu] = useState(false)
+
+  // Local word count — updates on debounce, avoids DOM creation on every keystroke
+  const [localWordCount, setLocalWordCount] = useState(note?.wordCount ?? 0)
+  const contentDebounce = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const latestHtml      = useRef<string>('')
+
+  // Sync local word count when switching notes
+  useEffect(() => {
+    setLocalWordCount(note?.wordCount ?? 0)
+  }, [note?.id])
 
   const editor = useEditor({
     extensions: [
@@ -86,7 +98,14 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
     content: note?.content ?? '',
     onUpdate({ editor }) {
       const html = editor.getHTML()
-      onUpdate({ content: html, wordCount: countWords(html) })
+      latestHtml.current = html
+      // Debounce: don't notify parent (setNotes) on every keystroke
+      clearTimeout(contentDebounce.current)
+      contentDebounce.current = setTimeout(() => {
+        const wc = countWords(latestHtml.current)
+        setLocalWordCount(wc)
+        onUpdate({ content: latestHtml.current, wordCount: wc })
+      }, CONTENT_DEBOUNCE)
     },
     editorProps: {
       attributes: { class: styles.tiptap, spellcheck: 'false' },
@@ -220,8 +239,6 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
     )
   }
 
-  const wordCount = note.wordCount ?? 0
-
   return (
     <div className={styles.area}>
       {/* Toolbar */}
@@ -272,7 +289,7 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
           {saveStatus === 'saved'  && <span className={styles.saved}>已保存</span>}
         </span>
 
-        <span className={styles.wc}>{wordCount} 字</span>
+        <span className={styles.wc}>{localWordCount} 字</span>
 
         {/* Export */}
         <div className={styles.exportWrap}>

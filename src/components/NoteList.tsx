@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import type { Note, SortType, ViewType } from '../types'
 import { TAG_COLORS } from '../data/mockData'
 import { FilterIcon, PlusIcon } from './icons'
@@ -23,7 +23,7 @@ const VIEW_TITLES: Partial<Record<ViewType, string>> = {
   trash: '废纸篓',
 }
 
-export default function NoteList({
+export default memo(function NoteList({
   visible, notes, activeId, view,
   onSelect, onCreate, onTrash, onRestore, onDeletePermanent, onToggleStar,
 }: Props) {
@@ -151,7 +151,7 @@ export default function NoteList({
       {menuId && <div className={styles.overlay} onClick={() => setMenuId(null)} />}
     </div>
   )
-}
+})
 
 interface ItemProps {
   note: Note
