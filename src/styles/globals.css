@@ -75,3 +75,16 @@ html, body {
   white-space: nowrap;
 }
 .tip.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Print / PDF export */
+@media print {
+  .window { height: auto; overflow: visible; }
+  .main   { overflow: visible; }
+  nav, [class*="Titlebar"], [class*="NoteList"], [class*="RightPanel"],
+  [class*="toolbar"], [class*="Sidebar"], [class*="bc"], [class*="meta"],
+  [class*="trashNotice"] { display: none !important; }
+  [class*="scroll"] { overflow: visible !important; height: auto !important; }
+  [class*="area"]   { overflow: visible !important; height: auto !important; }
+  [class*="inner"]  { max-width: 100% !important; padding: 0 40px !important; }
+  [class*="title"]  { font-size: 24px !important; margin-bottom: 16px !important; }
+}

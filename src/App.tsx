@@ -12,18 +12,21 @@ import './styles/globals.css'
 const DEFAULT_PANELS: PanelState = { sidebar: true, noteList: true, rightPanel: true }
 const AUTOSAVE_DELAY = 800
 
+export type SaveStatus = 'idle' | 'saving' | 'saved'
+
 export default function App() {
-  const [panels, setPanels]       = useState<PanelState>(DEFAULT_PANELS)
-  const [notes, setNotes]         = useState<Note[]>([])
-  const [activeId, setActiveId]   = useState<string | null>(null)
-  const [view, setView]           = useState<ViewType>('all')
-  const [loading, setLoading]     = useState(true)
+  const [panels, setPanels]         = useState<PanelState>(DEFAULT_PANELS)
+  const [notes, setNotes]           = useState<Note[]>([])
+  const [activeId, setActiveId]     = useState<string | null>(null)
+  const [view, setView]             = useState<ViewType>('all')
+  const [loading, setLoading]       = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
-  const saveTimer                 = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const saveTimer                   = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const savedTimer                  = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     loadNotes().then(list => {
-      // migrate old notes that don't have deleted field
       const migrated = list.map(n => ({ ...n, deleted: n.deleted ?? false }))
       setNotes(migrated)
       const first = migrated.find(n => !n.deleted)
@@ -35,11 +38,11 @@ export default function App() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey
-      if (mod && e.key === '\\')             { e.preventDefault(); toggle('sidebar') }
-      if (mod && e.shiftKey && e.key === 'L'){ e.preventDefault(); toggle('noteList') }
-      if (mod && e.shiftKey && e.key === 'I'){ e.preventDefault(); toggle('rightPanel') }
-      if (mod && e.key === 'n')              { e.preventDefault(); handleCreate() }
-      if (mod && e.key === 'k')              { e.preventDefault(); setSearchOpen(true) }
+      if (mod && e.key === '\\')              { e.preventDefault(); toggle('sidebar') }
+      if (mod && e.shiftKey && e.key === 'L') { e.preventDefault(); toggle('noteList') }
+      if (mod && e.shiftKey && e.key === 'I') { e.preventDefault(); toggle('rightPanel') }
+      if (mod && e.key === 'n')               { e.preventDefault(); handleCreate() }
+      if (mod && e.key === 'k')               { e.preventDefault(); setSearchOpen(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -53,38 +56,27 @@ export default function App() {
   const filteredNotes = notes.filter(n => {
     if (view === 'trash')   return n.deleted
     if (view === 'starred') return n.starred && !n.deleted
-    if (view.startsWith('tag:')) {
-      const tag = view.slice(4)
-      return n.tags.includes(tag) && !n.deleted
-    }
-    if (view.startsWith('folder:')) {
-      const folder = view.slice(7)
-      return n.folder === folder && !n.deleted
-    }
-    return !n.deleted // 'all'
+    if (view.startsWith('tag:'))    return n.tags.includes(view.slice(4)) && !n.deleted
+    if (view.startsWith('folder:')) return n.folder === view.slice(7) && !n.deleted
+    return !n.deleted
   })
 
-  // ── All tags across non-deleted notes (for sidebar) ────────────────
-  const allTags = Array.from(new Set(notes.filter(n => !n.deleted).flatMap(n => n.tags)))
+  // ── All tags / folders for sidebar + editor ────────────────────────
+  const allTags    = Array.from(new Set(notes.filter(n => !n.deleted).flatMap(n => n.tags)))
+  const allFolders = Array.from(new Set(
+    notes.filter(n => !n.deleted && n.folder && n.folder !== '未分类').map(n => n.folder)
+  ))
 
   // ── Create ─────────────────────────────────────────────────────────
   const handleCreate = useCallback(() => {
-    if (view === 'trash') return   // don't create in trash view
+    if (view === 'trash') return
     const now = new Date().toISOString().split('T')[0]
     const folder = view.startsWith('folder:') ? view.slice(7) : '未分类'
     const tag    = view.startsWith('tag:')    ? view.slice(4)  : undefined
     const newNote: Note = {
-      id: generateId(),
-      title: '',
-      content: '',
-      preview: '',
-      tags: tag ? [tag] : [],
-      starred: view === 'starred',
-      deleted: false,
-      folder,
-      wordCount: 0,
-      createdAt: now,
-      updatedAt: now,
+      id: generateId(), title: '', content: '', preview: '',
+      tags: tag ? [tag] : [], starred: view === 'starred',
+      deleted: false, folder, wordCount: 0, createdAt: now, updatedAt: now,
     }
     setNotes(prev => [newNote, ...prev])
     setActiveId(newNote.id)
@@ -97,13 +89,17 @@ export default function App() {
     const now = new Date().toISOString().split('T')[0]
     const fullPatch = { ...patch, updatedAt: now }
     setNotes(prev => prev.map(n => n.id === activeId ? { ...n, ...fullPatch } : n))
+    setSaveStatus('saving')
     clearTimeout(saveTimer.current)
+    clearTimeout(savedTimer.current)
     saveTimer.current = setTimeout(() => {
       setNotes(prev => {
         const note = prev.find(n => n.id === activeId)
         if (note) saveNote({ ...note, ...fullPatch })
         return prev
       })
+      setSaveStatus('saved')
+      savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2000)
     }, AUTOSAVE_DELAY)
   }, [activeId])
 
@@ -113,7 +109,6 @@ export default function App() {
       const next = prev.map(n => n.id === id ? { ...n, deleted: true } : n)
       const note = next.find(n => n.id === id)
       if (note) saveNote(note)
-      // switch selection
       if (activeId === id) {
         const remaining = next.filter(n => !n.deleted)
         setActiveId(remaining.length > 0 ? remaining[0].id : null)
@@ -142,10 +137,9 @@ export default function App() {
     })
   }, [activeId])
 
-  // ── Create folder (folder created implicitly when first note added) ──
+  // ── Folder ops ────────────────────────────────────────────────────
   const handleCreateFolder = useCallback((_name: string) => {}, [])
 
-  // ── Rename folder ──────────────────────────────────────────────────
   const handleRenameFolder = useCallback((oldName: string, newName: string) => {
     if (!newName.trim() || newName === oldName) return
     setNotes(prev => {
@@ -156,7 +150,6 @@ export default function App() {
     setView(`folder:${newName}`)
   }, [])
 
-  // ── Delete folder (move notes to 未分类) ──────────────────────────
   const handleDeleteFolder = useCallback((name: string) => {
     setNotes(prev => {
       const next = prev.map(n => n.folder === name ? { ...n, folder: '未分类' } : n)
@@ -203,10 +196,9 @@ export default function App() {
             onOpenSearch={() => setSearchOpen(true)}
             onViewChange={(v) => {
               setView(v)
-              // auto-select first note in new view
               const first = notes.find(n => {
-                if (v === 'trash')   return n.deleted
-                if (v === 'starred') return n.starred && !n.deleted
+                if (v === 'trash')           return n.deleted
+                if (v === 'starred')         return n.starred && !n.deleted
                 if (v.startsWith('tag:'))    return n.tags.includes(v.slice(4)) && !n.deleted
                 if (v.startsWith('folder:')) return n.folder === v.slice(7) && !n.deleted
                 return !n.deleted
@@ -226,7 +218,13 @@ export default function App() {
             onDeletePermanent={handleDeletePermanent}
             onToggleStar={handleToggleStar}
           />
-          <Editor note={activeNote} onUpdate={handleUpdate} inTrash={view === 'trash'} />
+          <Editor
+            note={activeNote}
+            onUpdate={handleUpdate}
+            inTrash={view === 'trash'}
+            saveStatus={saveStatus}
+            allFolders={allFolders}
+          />
           <RightPanel visible={panels.rightPanel} note={activeNote} />
         </div>
       </div>
@@ -236,9 +234,6 @@ export default function App() {
           notes={notes}
           onSelect={(id) => {
             setActiveId(id)
-            // switch to 'all' only if the note isn't visible in current view
-            const note = notes.find(n => n.id === id)
-            if (!note) return
             const visibleInCurrentView = filteredNotes.some(n => n.id === id)
             if (!visibleInCurrentView) setView('all')
           }}
