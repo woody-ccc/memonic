@@ -130,6 +130,12 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
     }
   }, [note?.id])
 
+  // Disable editor when viewing trash
+  useEffect(() => {
+    if (!editor) return
+    editor.setEditable(!inTrash)
+  }, [editor, inTrash])
+
   useEffect(() => {
     if (!titleRef.current || !note) return
     if (titleRef.current.textContent !== note.title) {
@@ -181,10 +187,14 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
     if (!note) return
     const md = htmlToMarkdown(note.content, note.title)
     const blob = new Blob([md], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
+    a.href = url
     a.download = `${note.title || '未命名笔记'}.md`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
     setShowExport(false)
   }
 

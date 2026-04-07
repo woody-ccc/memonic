@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Note, SortType, ViewType } from '../types'
 import { TAG_COLORS } from '../data/mockData'
 import { FilterIcon, PlusIcon } from './icons'
@@ -32,6 +32,12 @@ export default function NoteList({
   const [filterTag, setFilterTag] = useState<string | null>(null)
   const [showFilter, setShowFilter] = useState(false)
   const isTrash = view === 'trash'
+
+  // Reset filter when switching views
+  useEffect(() => {
+    setFilterTag(null)
+    setShowFilter(false)
+  }, [view])
 
   const title = VIEW_TITLES[view]
     ?? (view.startsWith('tag:') ? `#${view.slice(4)}` : view.startsWith('folder:') ? view.slice(7) : '笔记')
@@ -116,14 +122,11 @@ export default function NoteList({
       <div className={styles.items}>
         {sorted.length === 0 && (
           <div className={styles.empty}>
-            <p>{isTrash ? '废纸篓是空的' : '这里还没有笔记'}</p>
-            {!isTrash && <button onClick={onCreate}>+ 新建第一篇</button>}
-          </div>
-        )}
-
-        {sorted.length === 0 && filtered.length < notes.length && (
-          <div className={styles.empty}>
-            <p>该标签下没有笔记</p>
+            {filterTag
+              ? <p>标签「{filterTag}」下没有笔记</p>
+              : <p>{isTrash ? '废纸篓是空的' : '这里还没有笔记'}</p>
+            }
+            {!isTrash && !filterTag && <button onClick={onCreate}>+ 新建第一篇</button>}
           </div>
         )}
 
@@ -140,6 +143,7 @@ export default function NoteList({
             onRestore={() => { onRestore(note.id); setMenuId(null) }}
             onDeletePermanent={() => { onDeletePermanent(note.id); setMenuId(null) }}
             onToggleStar={(e) => { e.stopPropagation(); onToggleStar(note.id) }}
+            onToggleStarDirect={() => { onToggleStar(note.id); setMenuId(null) }}
           />
         ))}
       </div>
@@ -160,9 +164,10 @@ interface ItemProps {
   onRestore: () => void
   onDeletePermanent: () => void
   onToggleStar: (e: React.MouseEvent) => void
+  onToggleStarDirect: () => void
 }
 
-function NoteItem({ note, active, isTrash, showMenu, onClick, onContextMenu, onTrash, onRestore, onDeletePermanent, onToggleStar }: ItemProps) {
+function NoteItem({ note, active, isTrash, showMenu, onClick, onContextMenu, onTrash, onRestore, onDeletePermanent, onToggleStar, onToggleStarDirect }: ItemProps) {
   return (
     <div
       className={`${styles.item} ${active ? styles.active : ''}`}
@@ -208,7 +213,7 @@ function NoteItem({ note, active, isTrash, showMenu, onClick, onContextMenu, onT
         <div className={styles.menu} onClick={e => e.stopPropagation()}>
           {!isTrash && (
             <>
-              <div className={styles.menuItem} onClick={() => { onToggleStar(new MouseEvent('click') as unknown as React.MouseEvent) }}>
+              <div className={styles.menuItem} onClick={onToggleStarDirect}>
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
                   <path d="M8 1l1.8 3.6 4 .58-2.9 2.82.68 3.98L8 11.1l-3.58 1.88.68-3.98L2.2 6.18l4-.58z"/>
                 </svg>

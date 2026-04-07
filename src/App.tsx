@@ -87,7 +87,11 @@ export default function App() {
   const handleUpdate = useCallback((patch: Partial<Note>) => {
     if (!activeId) return
     const now = new Date().toISOString().split('T')[0]
-    const fullPatch = { ...patch, updatedAt: now }
+    // compute preview so NoteList updates in real-time
+    const preview = patch.content !== undefined
+      ? (() => { const d = document.createElement('div'); d.innerHTML = patch.content!; return (d.textContent || '').trim().slice(0, 80) })()
+      : undefined
+    const fullPatch: Partial<Note> = { ...patch, updatedAt: now, ...(preview !== undefined ? { preview } : {}) }
     setNotes(prev => prev.map(n => n.id === activeId ? { ...n, ...fullPatch } : n))
     setSaveStatus('saving')
     clearTimeout(saveTimer.current)
