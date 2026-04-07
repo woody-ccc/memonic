@@ -28,25 +28,21 @@
   -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--white);
+  overflow: hidden;
 }
 
-/* Window shell */
+/* Window shell — fills the entire Electron window */
 .window {
-  width: 1240px;
-  height: 780px;
+  width: 100vw;
+  height: 100vh;
   background: var(--white);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  box-shadow: 0 4px 24px rgba(15,23,42,.07), 0 1px 4px rgba(15,23,42,.04);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .main {

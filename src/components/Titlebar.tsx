@@ -10,11 +10,8 @@ interface Props {
 export default function Titlebar({ panels, onToggle }: Props) {
   return (
     <div className={styles.titlebar}>
-      <div className={styles.dots}>
-        <div className={`${styles.dot} ${styles.r}`} />
-        <div className={`${styles.dot} ${styles.y}`} />
-        <div className={`${styles.dot} ${styles.g}`} />
-      </div>
+      {/* 留出左侧空间给原生 traffic lights（hiddenInset 模式下约 80px） */}
+      <div className={styles.trafficLightSpace} />
 
       <span className={styles.center}>memonic</span>
 
