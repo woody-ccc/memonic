@@ -1,49 +1,65 @@
-/**
- * Storage service — uses Electron IPC when running as desktop app,
- * falls back to localStorage when running in a plain browser.
- */
 import type { Note } from '../types'
-import { NOTES } from '../data/mockData'
+import { INITIAL_NOTES } from '../data/mockData'
 
 const isElectron = !!window.electronAPI
+const KEY = (id: string) => `memonic:note:${id}`
+const INDEX_KEY = 'memonic:index'
 
-// ── Seed localStorage with mock data on first run ──────────────────
-function seedIfEmpty() {
-  if (localStorage.getItem('memonic:seeded')) return
-  NOTES.forEach(n => localStorage.setItem(`memonic:note:${n.id}`, JSON.stringify(n)))
-  localStorage.setItem('memonic:seeded', '1')
+function textFromHtml(html: string): string {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return (div.textContent || '').trim().slice(0, 80)
+}
+
+// ── Seed on first run ──────────────────────────────────────────────
+async function seedIfEmpty(): Promise<void> {
+  if (isElectron) {
+    const existing = await window.electronAPI!.notes.list()
+    if (existing.length === 0) {
+      for (const n of INITIAL_NOTES) {
+        await window.electronAPI!.notes.save(n)
+      }
+    }
+  } else {
+    if (!localStorage.getItem('memonic:seeded')) {
+      INITIAL_NOTES.forEach(n => localStorage.setItem(KEY(n.id), JSON.stringify(n)))
+      const ids = INITIAL_NOTES.map(n => n.id)
+      localStorage.setItem(INDEX_KEY, JSON.stringify(ids))
+      localStorage.setItem('memonic:seeded', '1')
+    }
+  }
 }
 
 // ── Public API ─────────────────────────────────────────────────────
-export async function listNotes(): Promise<Note[]> {
+export async function loadNotes(): Promise<Note[]> {
+  await seedIfEmpty()
   if (isElectron) {
-    const notes = await window.electronAPI!.notes.list()
-    // seed on first run
-    if (notes.length === 0) {
-      await Promise.all(NOTES.map(n => window.electronAPI!.notes.save(n as unknown as Record<string, unknown>)))
-      return NOTES
-    }
-    return notes
+    const list = await window.electronAPI!.notes.list()
+    return (list as Note[]).sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
   }
-  seedIfEmpty()
-  return Object.keys(localStorage)
-    .filter(k => k.startsWith('memonic:note:'))
-    .map(k => JSON.parse(localStorage.getItem(k)!))
-    .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
-}
-
-export async function getNote(id: string): Promise<Note | null> {
-  if (isElectron) return window.electronAPI!.notes.get(id)
-  const raw = localStorage.getItem(`memonic:note:${id}`)
-  return raw ? JSON.parse(raw) : null
+  const ids: string[] = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]')
+  return ids
+    .map(id => {
+      const raw = localStorage.getItem(KEY(id))
+      return raw ? (JSON.parse(raw) as Note) : null
+    })
+    .filter(Boolean) as Note[]
 }
 
 export async function saveNote(note: Note): Promise<void> {
-  const updated = { ...note, updatedAt: new Date().toISOString().split('T')[0] }
+  const updated: Note = {
+    ...note,
+    preview: textFromHtml(note.content),
+    updatedAt: new Date().toISOString().split('T')[0],
+  }
   if (isElectron) {
-    await window.electronAPI!.notes.save(updated as unknown as Record<string, unknown>)
+    await window.electronAPI!.notes.save(updated)
   } else {
-    localStorage.setItem(`memonic:note:${note.id}`, JSON.stringify(updated))
+    localStorage.setItem(KEY(note.id), JSON.stringify(updated))
+    const ids: string[] = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]')
+    if (!ids.includes(note.id)) {
+      localStorage.setItem(INDEX_KEY, JSON.stringify([note.id, ...ids]))
+    }
   }
 }
 
@@ -51,10 +67,22 @@ export async function deleteNote(id: string): Promise<void> {
   if (isElectron) {
     await window.electronAPI!.notes.delete(id)
   } else {
-    localStorage.removeItem(`memonic:note:${id}`)
+    localStorage.removeItem(KEY(id))
+    const ids: string[] = JSON.parse(localStorage.getItem(INDEX_KEY) || '[]')
+    localStorage.setItem(INDEX_KEY, JSON.stringify(ids.filter(i => i !== id)))
   }
 }
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
+}
+
+export function countWords(html: string): number {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const text = div.textContent || ''
+  // count CJK characters + latin words
+  const cjk = (text.match(/[\u4e00-\u9fa5]/g) || []).length
+  const latin = (text.match(/\b[a-zA-Z]+\b/g) || []).length
+  return cjk + latin
 }

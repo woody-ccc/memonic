@@ -1,29 +1,14 @@
 export interface Note {
   id: string
   title: string
-  preview: string
-  date: string
-  tags: Tag[]
+  content: string        // HTML content from Tiptap
+  preview: string        // plain text snippet
+  tags: string[]
   starred: boolean
-  folder?: string
-  content?: string
-  wordCount?: number
-  charCount?: number
+  folder: string
+  wordCount: number
   createdAt: string
   updatedAt: string
-}
-
-export interface Tag {
-  id: string
-  name: string
-  color: string
-  bg: string
-}
-
-export interface Folder {
-  id: string
-  name: string
-  count: number
 }
 
 export interface PanelState {
