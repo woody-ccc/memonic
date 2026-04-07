@@ -4,7 +4,6 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
-import Typography from '@tiptap/extension-typography'
 import Image from '@tiptap/extension-image'
 import type { Note } from '../types'
 import type { SaveStatus } from '../App'
@@ -79,6 +78,7 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
   // Local word count — updates on debounce, avoids DOM creation on every keystroke
   const [localWordCount, setLocalWordCount] = useState(note?.wordCount ?? 0)
   const contentDebounce = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const titleDebounce   = useRef<ReturnType<typeof setTimeout>>(undefined)
   const latestHtml      = useRef<string>('')
 
   // Sync local word count when switching notes
@@ -91,7 +91,6 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Typography,
       Placeholder.configure({ placeholder: '开始写作...' }),
       Image.configure({ inline: false, allowBase64: true }),
     ],
@@ -164,30 +163,32 @@ export default function Editor({ note, onUpdate, inTrash, saveStatus, allFolders
 
   const handleTitleInput = useCallback(() => {
     const text = titleRef.current?.textContent ?? ''
-    onUpdate({ title: text })
+    clearTimeout(titleDebounce.current)
+    titleDebounce.current = setTimeout(() => onUpdate({ title: text }), 300)
   }, [onUpdate])
 
   const handleTitleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); editor?.commands.focus('start') }
   }, [editor])
 
-  const cmd = (action: string) => () => {
+  const cmd = useCallback((action: string) => () => {
     if (!editor) return
+    const c = editor.chain()
     switch (action) {
-      case 'bold':       editor.chain().focus().toggleBold().run(); break
-      case 'italic':     editor.chain().focus().toggleItalic().run(); break
-      case 'strike':     editor.chain().focus().toggleStrike().run(); break
-      case 'code':       editor.chain().focus().toggleCode().run(); break
-      case 'h1':         editor.chain().focus().toggleHeading({ level: 1 }).run(); break
-      case 'h2':         editor.chain().focus().toggleHeading({ level: 2 }).run(); break
-      case 'ul':         editor.chain().focus().toggleBulletList().run(); break
-      case 'ol':         editor.chain().focus().toggleOrderedList().run(); break
-      case 'task':       editor.chain().focus().toggleTaskList().run(); break
-      case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break
-      case 'codeBlock':  editor.chain().focus().toggleCodeBlock().run(); break
-      case 'hr':         editor.chain().focus().setHorizontalRule().run(); break
+      case 'bold':       c.toggleBold().run(); break
+      case 'italic':     c.toggleItalic().run(); break
+      case 'strike':     c.toggleStrike().run(); break
+      case 'code':       c.toggleCode().run(); break
+      case 'h1':         c.toggleHeading({ level: 1 }).run(); break
+      case 'h2':         c.toggleHeading({ level: 2 }).run(); break
+      case 'ul':         c.toggleBulletList().run(); break
+      case 'ol':         c.toggleOrderedList().run(); break
+      case 'task':       c.toggleTaskList().run(); break
+      case 'blockquote': c.toggleBlockquote().run(); break
+      case 'codeBlock':  c.toggleCodeBlock().run(); break
+      case 'hr':         c.setHorizontalRule().run(); break
     }
-  }
+  }, [editor])
 
   const isActive = (type: string, attrs?: Record<string, unknown>) =>
     editor?.isActive(type, attrs) ?? false
