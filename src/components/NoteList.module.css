@@ -144,4 +144,42 @@
 .itemFoot { display: flex; align-items: center; gap: 5px; }
 .date  { font-size: 10.5px; color: var(--t5); }
 .tag   { font-size: 10px; padding: 1px 7px; border-radius: 20px; font-weight: 500; }
-.star  { margin-left: auto; color: #F59E0B; display: flex; }
+.star {
+  margin-left: auto;
+  color: var(--t5);
+  display: flex;
+  padding: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color .12s, opacity .12s;
+  opacity: 0;
+}
+.item:hover .star { opacity: 1; }
+.starOn { color: #F59E0B !important; opacity: 1 !important; }
+
+.restoreBtn {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(59,130,246,.3);
+  transition: background .12s;
+}
+.restoreBtn:hover { background: var(--blue-lt); }
+
+.clearBtn {
+  font-size: 11px;
+  color: #DC2626;
+  background: none;
+  border: 1px solid rgba(220,38,38,.2);
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.clearBtn:hover { background: #FEF2F2; }
+
+.menuDanger { color: #DC2626 !important; }
+.menuDanger:hover { background: #FEF2F2 !important; }

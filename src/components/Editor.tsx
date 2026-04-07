@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -13,11 +13,15 @@ import styles from './Editor.module.css'
 interface Props {
   note: Note | null
   onUpdate: (patch: Partial<Note>) => void
+  inTrash?: boolean
 }
 
-export default function Editor({ note, onUpdate }: Props) {
+export default function Editor({ note, onUpdate, inTrash }: Props) {
   const { showTip } = useTooltip()
   const titleRef = useRef<HTMLDivElement>(null)
+  const [tagInput, setTagInput] = useState('')
+  const [showTagInput, setShowTagInput] = useState(false)
+  const tagInputRef = useRef<HTMLInputElement>(null)
 
   const editor = useEditor({
     extensions: [
@@ -196,13 +200,68 @@ export default function Editor({ note, onUpdate }: Props) {
             <span className={styles.metaDate}>{note.updatedAt}</span>
             <span className={styles.metaDot}>·</span>
             <span className={styles.metaDate}>{note.folder || '未分类'}</span>
+
+            {/* Tags */}
             {note.tags.map(tag => (
-              <span key={tag} className={styles.chip}
-                style={{ background: '#EEF2FF', color: '#6366F1' }}>
+              <span key={tag} className={styles.tagChip}>
                 #{tag}
+                {!inTrash && (
+                  <span
+                    className={styles.tagRemove}
+                    onClick={() => onUpdate({ tags: note.tags.filter(t => t !== tag) })}
+                    title="删除标签"
+                  >×</span>
+                )}
               </span>
             ))}
+
+            {/* Add tag */}
+            {!inTrash && !showTagInput && (
+              <span className={styles.addTag} onClick={() => {
+                setShowTagInput(true)
+                setTimeout(() => tagInputRef.current?.focus(), 50)
+              }}>
+                + 标签
+              </span>
+            )}
+            {!inTrash && showTagInput && (
+              <input
+                ref={tagInputRef}
+                className={styles.tagInput}
+                value={tagInput}
+                placeholder="标签名..."
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && tagInput.trim()) {
+                    const t = tagInput.trim()
+                    if (!note.tags.includes(t)) {
+                      onUpdate({ tags: [...note.tags, t] })
+                    }
+                    setTagInput('')
+                    setShowTagInput(false)
+                  }
+                  if (e.key === 'Escape') {
+                    setTagInput('')
+                    setShowTagInput(false)
+                  }
+                }}
+                onBlur={() => {
+                  if (tagInput.trim() && !note.tags.includes(tagInput.trim())) {
+                    onUpdate({ tags: [...note.tags, tagInput.trim()] })
+                  }
+                  setTagInput('')
+                  setShowTagInput(false)
+                }}
+              />
+            )}
           </div>
+
+          {/* Trash notice */}
+          {inTrash && (
+            <div className={styles.trashNotice}>
+              此笔记在废纸篓中，只可查看不可编辑。
+            </div>
+          )}
 
           {/* Tiptap editor */}
           <EditorContent editor={editor} className={styles.editorWrap} />
