@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Note } from '../types'
-import { LinkIcon } from './icons'
 import styles from './RightPanel.module.css'
 
 interface Props {
@@ -55,12 +54,6 @@ export default function RightPanel({ visible, note }: Props) {
         </section>
       )}
 
-      {/* Backlinks placeholder */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>反向链接</div>
-        <div className={styles.empty}>暂无反向链接</div>
-      </section>
-
       {/* Meta */}
       {note && (
         <section className={`${styles.section} ${styles.meta}`}>
@@ -95,5 +88,3 @@ function MetaRow({ k, v }: { k: string; v: string }) {
   )
 }
 
-// keep LinkIcon import used
-export { LinkIcon }

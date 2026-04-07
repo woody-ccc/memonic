@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import type { Note, ViewType } from '../types'
 import { TAG_COLORS } from '../data/mockData'
 import { AllNotesIcon, StarIcon, TrashIcon, FolderIcon, PlusIcon, SettingsIcon, SearchIcon } from './icons'
@@ -10,10 +11,15 @@ interface Props {
   allTags: string[]
   notes: Note[]
   onViewChange: (v: ViewType) => void
+  onCreateFolder: (name: string) => void
+  onOpenSearch: () => void
 }
 
-export default function Sidebar({ visible, view, allTags, notes, onViewChange }: Props) {
+export default function Sidebar({ visible, view, allTags, notes, onViewChange, onCreateFolder, onOpenSearch }: Props) {
   const { showTip } = useTooltip()
+  const [addingFolder, setAddingFolder] = useState(false)
+  const [folderInput, setFolderInput] = useState('')
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   const starredCount = notes.filter(n => n.starred && !n.deleted).length
   const trashCount   = notes.filter(n => n.deleted).length
@@ -30,10 +36,30 @@ export default function Sidebar({ visible, view, allTags, notes, onViewChange }:
     )
   }
 
+  function startAddFolder() {
+    setAddingFolder(true)
+    setFolderInput('')
+    setTimeout(() => folderInputRef.current?.focus(), 50)
+  }
+
+  function confirmFolder() {
+    const name = folderInput.trim()
+    if (name) {
+      onCreateFolder(name)
+      onViewChange(`folder:${name}`)
+    }
+    setAddingFolder(false)
+    setFolderInput('')
+  }
+
+  const folders = Array.from(new Set(
+    notes.filter(n => !n.deleted && n.folder && n.folder !== '未分类').map(n => n.folder)
+  ))
+
   return (
     <nav className={`${styles.sidebar} ${!visible ? styles.hide : ''}`}>
       {/* Search */}
-      <div className={styles.search} onClick={() => showTip('全局搜索（开发中）')}>
+      <div className={styles.search} onClick={onOpenSearch}>
         <SearchIcon />
         <span className={styles.searchTxt}>搜索...</span>
         <span className={styles.kbd}>⌘K</span>
@@ -71,7 +97,7 @@ export default function Sidebar({ visible, view, allTags, notes, onViewChange }:
       {/* Folders */}
       <div className={styles.group}>
         <div className={styles.label}>文件夹</div>
-        {Array.from(new Set(notes.filter(n => !n.deleted && n.folder && n.folder !== '未分类').map(n => n.folder))).map(folder => {
+        {folders.map(folder => {
           const count = notes.filter(n => n.folder === folder && !n.deleted).length
           return (
             <div
@@ -85,9 +111,28 @@ export default function Sidebar({ visible, view, allTags, notes, onViewChange }:
             </div>
           )
         })}
-        <div className={`${styles.item} ${styles.muted}`} onClick={() => showTip('新建文件夹（开发中）')}>
-          <PlusIcon /> 新建文件夹
-        </div>
+
+        {addingFolder ? (
+          <div className={styles.folderInputRow}>
+            <FolderIcon />
+            <input
+              ref={folderInputRef}
+              className={styles.folderInput}
+              value={folderInput}
+              placeholder="文件夹名称..."
+              onChange={e => setFolderInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') confirmFolder()
+                if (e.key === 'Escape') { setAddingFolder(false); setFolderInput('') }
+              }}
+              onBlur={confirmFolder}
+            />
+          </div>
+        ) : (
+          <div className={`${styles.item} ${styles.muted}`} onClick={startAddFolder}>
+            <PlusIcon /> 新建文件夹
+          </div>
+        )}
       </div>
 
       {/* Bottom */}

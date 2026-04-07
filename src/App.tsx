@@ -6,18 +6,20 @@ import Sidebar from './components/Sidebar'
 import NoteList from './components/NoteList'
 import Editor from './components/Editor'
 import RightPanel from './components/RightPanel'
+import SearchModal from './components/SearchModal'
 import './styles/globals.css'
 
 const DEFAULT_PANELS: PanelState = { sidebar: true, noteList: true, rightPanel: true }
 const AUTOSAVE_DELAY = 800
 
 export default function App() {
-  const [panels, setPanels]     = useState<PanelState>(DEFAULT_PANELS)
-  const [notes, setNotes]       = useState<Note[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [view, setView]         = useState<ViewType>('all')
-  const [loading, setLoading]   = useState(true)
-  const saveTimer               = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [panels, setPanels]       = useState<PanelState>(DEFAULT_PANELS)
+  const [notes, setNotes]         = useState<Note[]>([])
+  const [activeId, setActiveId]   = useState<string | null>(null)
+  const [view, setView]           = useState<ViewType>('all')
+  const [loading, setLoading]     = useState(true)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const saveTimer                 = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     loadNotes().then(list => {
@@ -37,6 +39,7 @@ export default function App() {
       if (mod && e.shiftKey && e.key === 'L'){ e.preventDefault(); toggle('noteList') }
       if (mod && e.shiftKey && e.key === 'I'){ e.preventDefault(); toggle('rightPanel') }
       if (mod && e.key === 'n')              { e.preventDefault(); handleCreate() }
+      if (mod && e.key === 'k')              { e.preventDefault(); setSearchOpen(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -137,6 +140,12 @@ export default function App() {
     })
   }, [activeId])
 
+  // ── Create folder (just switches view; notes get folder on create) ──
+  const handleCreateFolder = useCallback((_name: string) => {
+    // Folder is created implicitly when a note is added to it.
+    // This callback exists so Sidebar can trigger view change after naming.
+  }, [])
+
   // ── Toggle star ────────────────────────────────────────────────────
   const handleToggleStar = useCallback((id: string) => {
     setNotes(prev => {
@@ -168,6 +177,8 @@ export default function App() {
             view={view}
             allTags={allTags}
             notes={notes}
+            onCreateFolder={handleCreateFolder}
+            onOpenSearch={() => setSearchOpen(true)}
             onViewChange={(v) => {
               setView(v)
               // auto-select first note in new view
@@ -198,6 +209,13 @@ export default function App() {
         </div>
       </div>
       <div id="tip" className="tip" />
+      {searchOpen && (
+        <SearchModal
+          notes={notes}
+          onSelect={(id) => { setActiveId(id); setView('all') }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </>
   )
 }

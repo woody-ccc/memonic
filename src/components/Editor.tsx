@@ -169,9 +169,6 @@ export default function Editor({ note, onUpdate, inTrash }: Props) {
 
         <span className={styles.wc}>{wordCount} 字</span>
 
-        <div className={styles.right}>
-          <button className={styles.shareBtn} onClick={() => showTip('功能开发中')}>分享</button>
-        </div>
       </div>
 
       {/* Content */}
